@@ -33,7 +33,7 @@ beta2=${6:-0.999}
 e=${7:-20}
 
 # useLazyAdam
-useLazyAdam=${8:false}
+useLazyAdam=${8:-false}
 
 echo "parallelism=$parallelism, random seed=$seed, learning rate=$lr, batch size=$b, beta1=$beta1, beta2=$beta2, max epoch=$e, useLazyAdam=$useLazyAdam"
 echo "unzip ml-20m.zip"
