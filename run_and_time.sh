@@ -32,6 +32,9 @@ beta2=${6:-0.999}
 # maxEpoch
 e=${7:-20}
 
+# useLazyAdam
+useLazyAdam=${8:false}
+
 echo "parallelism=$parallelism, random seed=$seed, learning rate=$lr, batch size=$b, beta1=$beta1, beta2=$beta2, max epoch=$e"
 echo "unzip ml-20m.zip"
 if unzip -o ml-20m.zip
@@ -43,7 +46,7 @@ then
       --class com.intel.analytics.zoo.examples.mlperf.recommendation.NeuralCFexample \
       target/ncf-0.1.0-SNAPSHOT-jar-with-dependencies.jar \
       --inputDir ml-20m -b $b -e $e --valNeg 999 --layers 256,256,128,64 --numFactors 64 \
-      --dataset ml-20m -l $lr --seed $seed --threshold $THRESHOLD --beta1 $beta1 --beta2 $beta2
+      --dataset ml-20m -l $lr --seed $seed --threshold $THRESHOLD --beta1 $beta1 --beta2 $beta2 --useLazyAdam $useLazyAdam
     t1=$(date +%s)
 	delta=$(( $t1 - $t0 ))
     echo "Finish training in $delta seconds"

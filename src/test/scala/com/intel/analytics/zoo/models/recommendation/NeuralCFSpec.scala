@@ -34,69 +34,11 @@ import scala.util.Random
 
 class NeuralCFSpec extends FlatSpec with Matchers with BeforeAndAfter {
 
-  var sqlContext: SQLContext = _
-  var sc: SparkContext = _
-  var datain: DataFrame = _
-  val userCount = 100
-  val itemCount = 100
-
-  before {
-    Logger.getLogger("org").setLevel(Level.ERROR)
-    val conf = new SparkConf().setMaster("local[1]").setAppName("NCFTest")
-    sqlContext = SQLContext.getOrCreate(sc)
-    Engine.init(1, 4, true)
-    val resource: URL = getClass.getClassLoader.getResource("recommender")
-    datain = sqlContext.read.parquet(resource.getFile)
-      .select("userId", "itemId", "label")
-  }
-
-  after {
-    if (sc != null) {
-      sc.stop()
-    }
-  }
-
-  "NeuralCF without MF forward and backward" should "work properly" in {
-
-    val model = NeuralCF[Float](userCount, itemCount, 5, 5, 5, Array(10, 5), false)
-    val ran = new Random(42L)
-    val data: Seq[Tensor[Float]] = (1 to 50).map(i => {
-      val uid = Math.abs(ran.nextInt(userCount - 1)).toFloat + 1
-      val iid = Math.abs(ran.nextInt(userCount - 1)).toFloat + 1
-      val feature: Tensor[Float] = Tensor(T(T(uid, iid)))
-      println(feature.size().toList)
-      val label = Math.abs(ran.nextInt(4)).toFloat + 1
-      println(feature.size())
-      feature
-    })
-    data.map { input =>
-      val output = model.forward(input)
-      val gradInput = model.backward(input, output)
-    }
-  }
-
-  "NeuralCF with MF forward and backward" should "work properly" in {
-    val model = NeuralCF[Float](userCount, itemCount, 5, 5, 5, Array(10, 5), true, 3)
-    val ran = new Random(42L)
-    val data: Seq[Tensor[Float]] = (1 to 50).map(i => {
-      val uid = Math.abs(ran.nextInt(userCount - 1)).toFloat + 1
-      val iid = Math.abs(ran.nextInt(userCount - 1)).toFloat + 1
-      val feature: Tensor[Float] = Tensor(T(T(uid, iid)))
-      val label = Math.abs(ran.nextInt(4)).toFloat + 1
-      feature
-    })
-    data.map { input =>
-      val output = model.forward(input)
-      val gradInput = model.backward(input, output)
-    }
-  }
-
-
   "hitrate@10" should "works fine" in {
     val o = Tensor[Float].range(1, 1000, 1).apply1(_ / 1000)
     val t = Tensor[Float](1000).zero
     t.setValue(1000, 1)
-    val hr = new HitRate[Float]()
+    val hr = new HitRate[Float](negNum = 999)
     val r1 = hr.apply(o, t).result()
     r1._1 should be (1.0)
 
@@ -113,7 +55,7 @@ class NeuralCFSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val o = Tensor[Float].range(1, 1000, 1).apply1(_ / 1000)
     val t = Tensor[Float](1000).zero
     t.setValue(1000, 1)
-    val ndcg = new Ndcg[Float]()
+    val ndcg = new Ndcg[Float](negNum = 999)
     val r1 = ndcg.apply(o, t).result()
     r1._1 should be (1.0)
 

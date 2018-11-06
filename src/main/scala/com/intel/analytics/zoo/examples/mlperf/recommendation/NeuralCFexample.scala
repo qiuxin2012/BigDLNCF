@@ -57,7 +57,8 @@ case class NeuralCFParams(val inputDir: String = "./data/ml-1m",
                           val threshold: Float = 0.635f,
                           val beta1: Double = 0.9,
                           val beta2: Double = 0.999,
-                          val eps: Double = 1e-8
+                          val eps: Double = 1e-8,
+                          val lazyAdam: Boolean = false
                     )
 
 case class Rating(userId: Int, itemId: Int, label: Int, timestamp: Int, train: Boolean)
@@ -117,6 +118,9 @@ object NeuralCFexample {
       opt[Int]("numFactors")
         .text("The Embedding size of MF model.")
         .action((x, c) => c.copy(numFactors = x))
+      opt[Boolean]("useLazyAdam")
+        .text("If use lazyAdam")
+        .action((x, c) => c.copy(lazyAdam = x))
     }
 
    parser.parse(args, defaultParams).map {
@@ -204,6 +208,9 @@ object NeuralCFexample {
       .setOptimMethods(optimMethod)
       .setValidation(Trigger.everyEpoch, valDataset,
           Array(new HitRate[Float](negNum = param.valNegtiveNum)))
+    if (param.lazyAdam) {
+      optimizer.enableLazyAdam()
+    }
     val endTrigger = maxEpochAndHr(param.nEpochs, param.threshold)
     optimizer
       .setEndWhen(endTrigger)
@@ -427,10 +434,6 @@ object NeuralCFexample {
         .union(rating.filter(r => bcEval.value.contains(r))))
 
   }
-
-
-
-
 
   def maxEpochAndHr(maxEpoch: Int, maxHr: Float): Trigger = {
     new Trigger() {

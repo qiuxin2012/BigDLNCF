@@ -100,6 +100,16 @@ class NCFOptimizer[T: ClassTag](
   private val workingCriterion =
     (1 to subModelNumber).map(_ => _criterion.cloneCriterion()).toArray
 
+  private var useLazyAdam: Boolean = false
+
+  def enableLazyAdam(): Unit = {
+    useLazyAdam = true
+  }
+
+  def disableLazyAdam(): Unit = {
+    useLazyAdam = false
+  }
+
   override def optimize(): Module[T] = {
     NcfLogger.info("train_loop")
     MklDnn.isLoaded
@@ -139,7 +149,9 @@ class NCFOptimizer[T: ClassTag](
         b += 1
       }
 //      val dataFetchTime = System.nanoTime()
-      embeddingOptim.updateWeight(batch.getInput().asInstanceOf[Tensor[T]], embeddingWeight)
+      if (!useLazyAdam) {
+        embeddingOptim.updateWeight(batch.getInput().asInstanceOf[Tensor[T]], embeddingWeight)
+      }
       // println("dataFetch")
 //      val modelTimeArray = new Array[Long](parallelism)
       val lossSum = Engine.default.invokeAndWait(
