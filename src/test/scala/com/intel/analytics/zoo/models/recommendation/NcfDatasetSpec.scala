@@ -315,7 +315,7 @@ class NcfDatasetSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val hiddenLayers = Array(16, 16, 8, 4)
 
     val optimMethod = Map(
-      "embeddings" -> new EmbeddingAdam2[Float](
+      "embeddings" -> new EmbeddingAdam[Float](
         learningRate = learningRate,
         userCount = userCount,
         itemCount = itemCount,
@@ -333,7 +333,7 @@ class NcfDatasetSpec extends FlatSpec with Matchers with BeforeAndAfter {
       hiddenLayers = hiddenLayers.slice(1, hiddenLayers.length),
       mfEmbed = numFactors)
 
-    val optimizer = new NCFOptimizer2[Float](ncf,
+    val optimizer = new NCFOptimizer[Float](ncf,
       trainDataset, BCECriterion[Float]())
 
     optimizer
@@ -382,7 +382,7 @@ class NcfDatasetSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val hiddenLayers = Array(16, 16, 8, 4)
 
     val optimMethod = Map(
-      "embeddings" -> new EmbeddingAdam2[Float](
+      "embeddings" -> new EmbeddingAdam[Float](
         learningRate = learningRate,
         userCount = userCount,
         itemCount = itemCount,
@@ -400,7 +400,7 @@ class NcfDatasetSpec extends FlatSpec with Matchers with BeforeAndAfter {
       hiddenLayers = hiddenLayers.slice(1, hiddenLayers.length),
       mfEmbed = numFactors)
 
-    val optimizer = new NCFOptimizer2[Float](ncf.cloneModule(),
+    val optimizer = new NCFOptimizer[Float](ncf.cloneModule(),
       trainDataset, BCECriterion[Float]())
 
     optimizer

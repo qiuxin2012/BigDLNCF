@@ -27,7 +27,7 @@ import scala.collection.mutable.ArrayBuffer
 import scala.math.{pow, sqrt}
 import scala.reflect.ClassTag
 
-class EmbeddingAdam2[@specialized(Float, Double) T: ClassTag](
+class EmbeddingAdam[@specialized(Float, Double) T: ClassTag](
   var learningRate: Double = 1e-3,
   var learningRateDecay: Double = 0.0,
   var beta1: Double = 0.9,
@@ -40,7 +40,7 @@ class EmbeddingAdam2[@specialized(Float, Double) T: ClassTag](
   val parallelism: Option[Int] = None
 )(implicit ev: TensorNumeric[T]) extends OptimMethod[T] {
 
-  EmbeddingAdam2.initBetas(beta1, beta2)
+  EmbeddingAdam.initBetas(beta1, beta2)
   val modelParallelism = Engine.coreNumber() // model parallelism, average gradient
   val parallelNum = parallelism.getOrElse(Engine.coreNumber())
 
@@ -94,19 +94,19 @@ class EmbeddingAdam2[@specialized(Float, Double) T: ClassTag](
       Affinity.setAffinity()
       val start = System.nanoTime()
       var offset = 0
-      EmbeddingAdam2.updateSparse(tid, itemTaskSize, extraItemTask, embedding1,
+      EmbeddingAdam.updateSparse(tid, itemTaskSize, extraItemTask, embedding1,
         state[Tensor[T]](s"buffer1$tid"), clr, beta1, beta2, eps, gradients(3),
         parameter, offset, itemTimestep, timestep, modelParallelism)
       offset += itemCount * embedding1
-      EmbeddingAdam2.updateSparse(tid, userTaskSize, extraUserTask, embedding1,
+      EmbeddingAdam.updateSparse(tid, userTaskSize, extraUserTask, embedding1,
         state[Tensor[T]](s"buffer2$tid"), clr, beta1, beta2, eps, gradients(2),
         parameter, offset, userTimestep, timestep, modelParallelism)
       offset += userCount * embedding1
-      EmbeddingAdam2.updateSparse(tid, itemTaskSize, extraItemTask, embedding2,
+      EmbeddingAdam.updateSparse(tid, itemTaskSize, extraItemTask, embedding2,
         state[Tensor[T]](s"buffer3$tid"), clr, beta1, beta2, eps, gradients(1),
         parameter, offset, null, timestep, modelParallelism)
       offset += itemCount * embedding2
-      EmbeddingAdam2.updateSparse(tid, userTaskSize, extraUserTask, embedding2,
+      EmbeddingAdam.updateSparse(tid, userTaskSize, extraUserTask, embedding2,
         state[Tensor[T]](s"buffer4$tid"), clr, beta1, beta2, eps, gradients(0),
         parameter, offset, null, timestep, modelParallelism)
 
@@ -139,19 +139,19 @@ class EmbeddingAdam2[@specialized(Float, Double) T: ClassTag](
       Affinity.setAffinity()
       val start = System.nanoTime()
       var offset = 0
-      EmbeddingAdam2.lazyUpdate(itemRecord, tid, itemTaskSize, extraItemTask, embedding1, parameter,
+      EmbeddingAdam.lazyUpdate(itemRecord, tid, itemTaskSize, extraItemTask, embedding1, parameter,
         state[Tensor[T]](s"buffer1$tid"), clr, beta1, beta2, eps, offset,
         itemTimestep, timestep, false)
       offset += itemCount * embedding1
-      EmbeddingAdam2.lazyUpdate(userRecord, tid, userTaskSize, extraUserTask, embedding1, parameter,
+      EmbeddingAdam.lazyUpdate(userRecord, tid, userTaskSize, extraUserTask, embedding1, parameter,
         state[Tensor[T]](s"buffer2$tid"), clr, beta1, beta2, eps, offset,
         userTimestep, timestep, false)
       offset += userCount * embedding1
-      EmbeddingAdam2.lazyUpdate(itemRecord, tid, itemTaskSize, extraItemTask, embedding2, parameter,
+      EmbeddingAdam.lazyUpdate(itemRecord, tid, itemTaskSize, extraItemTask, embedding2, parameter,
         state[Tensor[T]](s"buffer3$tid"), clr, beta1, beta2, eps, offset,
         itemTimestep, timestep, true)
       offset += itemCount * embedding2
-      EmbeddingAdam2.lazyUpdate(userRecord, tid, userTaskSize, extraUserTask, embedding2, parameter,
+      EmbeddingAdam.lazyUpdate(userRecord, tid, userTaskSize, extraUserTask, embedding2, parameter,
         state[Tensor[T]](s"buffer4$tid"), clr, beta1, beta2, eps, offset,
         userTimestep, timestep, true)
 
@@ -177,7 +177,7 @@ class EmbeddingAdam2[@specialized(Float, Double) T: ClassTag](
   override def getLearningRate(): Double = this.learningRate
 }
 
-object EmbeddingAdam2 {
+object EmbeddingAdam {
   val logger = Logger.getLogger(this.getClass)
 
   private[optim] def updateSparse[T: ClassTag](

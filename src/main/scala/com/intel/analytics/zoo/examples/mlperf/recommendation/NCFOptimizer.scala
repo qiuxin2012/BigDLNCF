@@ -38,7 +38,7 @@ import scala.reflect.ClassTag
  * @param _dataset data set
  * @param _criterion criterion to be used
  */
-class NCFOptimizer2[T: ClassTag](
+class NCFOptimizer[T: ClassTag](
   _model: Module[T],
   _dataset: LocalDataSet[MiniBatch[T]],
   _criterion: Criterion[T]
@@ -46,7 +46,7 @@ class NCFOptimizer2[T: ClassTag](
   extends Optimizer[T, MiniBatch[T]](
     _model, _dataset, _criterion) {
 
-  import NCFOptimizer2._
+  import NCFOptimizer._
   import Optimizer._
 
   private val coreNumber = Engine.coreNumber()
@@ -110,7 +110,7 @@ class NCFOptimizer2[T: ClassTag](
     state("trainingTime") = state.get[Long]("trainingTime").getOrElse(0L)
     state("isLayerwiseScaled") = Utils.isLayerwiseScaled(_model)
     val optimMethod: OptimMethod[T] = optimMethods("linears")
-    val embeddingOptim: EmbeddingAdam2[T] = optimMethods("embeddings").asInstanceOf[EmbeddingAdam2[T]]
+    val embeddingOptim: EmbeddingAdam[T] = optimMethods("embeddings").asInstanceOf[EmbeddingAdam[T]]
     val generationStart = System.currentTimeMillis()
     dataset.shuffle()
     logger.info(s"Generate epoch ${state("epoch")} data: ${System.currentTimeMillis() - generationStart} ms")
@@ -370,7 +370,7 @@ class NCFOptimizer2[T: ClassTag](
   }
 }
 
-object NCFOptimizer2 {
+object NCFOptimizer {
   val logger = Logger.getLogger(this.getClass)
 
   def initModel[T: ClassTag](model: Module[T], copies: Int,

@@ -140,7 +140,7 @@ object NeuralCFexample {
       ("beta2", param.beta2.toString),
       ("eps", param.eps.toString)))
     val optimMethod = Map(
-      "embeddings" -> new EmbeddingAdam2[Float](
+      "embeddings" -> new EmbeddingAdam[Float](
         learningRate = param.learningRate,
         learningRateDecay = param.learningRateDecay,
         beta1 = param.beta1,
@@ -197,7 +197,7 @@ object NeuralCFexample {
     NcfLogger.info("model_hp_loss_fn", "binary_cross_entropy")
     val criterion = BCECriterion[Float]()
 
-    val optimizer = new NCFOptimizer2[Float](ncf,
+    val optimizer = new NCFOptimizer[Float](ncf,
       trainDataset, criterion)
 
     optimizer

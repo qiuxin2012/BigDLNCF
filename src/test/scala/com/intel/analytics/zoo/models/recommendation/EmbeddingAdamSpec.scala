@@ -16,7 +16,7 @@
 package com.intel.analytics.zoo.models.recommendation
 
 import com.intel.analytics.bigdl.mkl.MklDnn
-import com.intel.analytics.bigdl.optim.{Adam, EmbeddingAdam2}
+import com.intel.analytics.bigdl.optim.{Adam, EmbeddingAdam}
 import com.intel.analytics.bigdl.tensor.Tensor
 import com.intel.analytics.bigdl.utils.{Engine, T}
 import org.scalatest.{BeforeAndAfter, FlatSpec, Matchers}
@@ -29,7 +29,7 @@ class EmbeddingAdamSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val itemCount = 5
     val embedding1 = 3
     val embedding2 = 4
-    val testAdam = new EmbeddingAdam2[Float](userCount = userCount, itemCount = itemCount,
+    val testAdam = new EmbeddingAdam[Float](userCount = userCount, itemCount = itemCount,
       embedding1 = embedding1, embedding2 = embedding2, parallelism = Some(1))
     val refAdam = new Adam[Float]()
     val length = itemCount * embedding1 + userCount * embedding1 + itemCount * embedding2 +
@@ -70,7 +70,7 @@ class EmbeddingAdamSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val itemCount = 5
     val embedding1 = 3
     val embedding2 = 4
-    val testAdam = new EmbeddingAdam2[Float](userCount = userCount, itemCount = itemCount,
+    val testAdam = new EmbeddingAdam[Float](userCount = userCount, itemCount = itemCount,
       embedding1 = embedding1, embedding2 = embedding2, parallelism = Some(1))
     val refAdam = new Adam[Float]()
     val length = itemCount * embedding1 + userCount * embedding1 + itemCount * embedding2 +
@@ -116,7 +116,7 @@ class EmbeddingAdamSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val itemCount = 5
     val embedding1 = 3
     val embedding2 = 4
-    val testAdam = new EmbeddingAdam2[Float](userCount = userCount, itemCount = itemCount,
+    val testAdam = new EmbeddingAdam[Float](userCount = userCount, itemCount = itemCount,
       embedding1 = embedding1, embedding2 = embedding2, parallelism = Some(1))
     val refAdam = new Adam[Float]()
     val length = itemCount * embedding1 + userCount * embedding1 + itemCount * embedding2 +
@@ -175,7 +175,7 @@ class EmbeddingAdamSpec extends FlatSpec with Matchers with BeforeAndAfter {
     val itemCount = 5
     val embedding1 = 3
     val embedding2 = 4
-    val testAdam = new EmbeddingAdam2[Float](userCount = userCount, itemCount = itemCount,
+    val testAdam = new EmbeddingAdam[Float](userCount = userCount, itemCount = itemCount,
       embedding1 = embedding1, embedding2 = embedding2, parallelism = Some(1))
     val refAdam = new Adam[Float]()
     val length = itemCount * embedding1 + userCount * embedding1 + itemCount * embedding2 +
