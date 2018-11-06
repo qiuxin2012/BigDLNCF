@@ -13,14 +13,14 @@ sudo apt-get install unzip curl
 ```
 3. Checkout the repo
 ```bash
-git clone -b ncf-new https://github.com/qiuxin2012/analytics-zoo.git
+git clone https://github.com/qiuxin2012/BigDLNCF.git
 ```
 
 4. Build from source
 
 ```bash
-cd analytics-zoo
-./make-dist.sh -P spark_2.x
+cd BigDLNCF
+./make-dist.sh
 ```
 Maven will take a few minutes to download dependencies the first time.
 
