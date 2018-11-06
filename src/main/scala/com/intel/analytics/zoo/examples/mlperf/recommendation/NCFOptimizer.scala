@@ -122,6 +122,7 @@ class NCFOptimizer[T: ClassTag](
     val optimMethod: OptimMethod[T] = optimMethods("linears")
     val embeddingOptim: EmbeddingAdam[T] = optimMethods("embeddings").asInstanceOf[EmbeddingAdam[T]]
     val generationStart = System.currentTimeMillis()
+    NcfLogger.info("input_step_train_neg_gen")
     dataset.shuffle()
     logger.info(s"Generate epoch ${state("epoch")} data: ${System.currentTimeMillis() - generationStart} ms")
     val numSamples = dataset.toLocal().data(train = false).map(_.size()).reduce(_ + _)
