@@ -156,13 +156,6 @@ object NeuralCFexample {
         beta1 = param.beta1,
         beta2 = param.beta2,
         Epsilon = param.eps))
-//    val optimMethod = new ParallelAdam[Float](
-//        learningRate = param.learningRate,
-//        learningRateDecay = param.learningRateDecay,
-//        beta1 = param.beta1,
-//        beta2 = param.beta2,
-//        Epsilon = param.eps)
-//    val validateBatchSize = optimMethod.parallelNum
     val validateBatchSize = optimMethod("linears").asInstanceOf[ParallelAdam[Float]].parallelNum
 
     val hiddenLayers = param.layers.split(",").map(_.toInt)
@@ -180,10 +173,6 @@ object NeuralCFexample {
     val valDataset = (DataSet.array(valSample) ->
       SampleToMiniBatch[Float](validateBatchSize)).toLocal()
 
-//    val valDataset = (DataSet.array[Sample[Float]](loadPytorchTest("test-ratings.csv",
-//      "test-negative.csv")) -> SampleToMiniBatch[Float](validateBatchSize)).toLocal()
-//    val trainDataset = (DataSet.array[MiniBatch[Float]](loadPytorchTrain("0.txt", param.batchSize))).toLocal()
-
     RandomGenerator.RNG.setSeed(param.seed)
     NcfLogger.info("model_hp_mf_dim", param.numFactors)
     NcfLogger.info("model_hp_mlp_layer_sizes", s"[${hiddenLayers.mkString(", ")}]")
@@ -196,8 +185,6 @@ object NeuralCFexample {
       hiddenLayers = hiddenLayers.slice(1, hiddenLayers.length),
       mfEmbed = param.numFactors)
 
-//    println(ncf)
-//    println(s"parameter length: ${ncf.parameters()._1.map(_.nElement()).sum}")
     NcfLogger.info("model_hp_loss_fn", "binary_cross_entropy")
     val criterion = BCECriterion[Float]()
 
@@ -209,6 +196,7 @@ object NeuralCFexample {
       .setValidation(Trigger.everyEpoch, valDataset,
           Array(new HitRate[Float](negNum = param.valNegtiveNum)))
     if (param.lazyAdam) {
+      NcfLogger.info("enable_lazy_adam")
       optimizer.enableLazyAdam()
     }
     val endTrigger = maxEpochAndHr(param.nEpochs, param.threshold)
