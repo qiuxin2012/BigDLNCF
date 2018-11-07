@@ -182,6 +182,7 @@ object GenerateData {
     groupedRatings.foreach(x => Sorting.quickSort(x._2))
     val groupUserAndItems = groupedRatings.map(x => (x._1, x._2.map(_.itemId)))
 
+
     // test ratings of bigdl
     NcfLogger.info("preproc_hp_min_ratings", 20)
     val evalPosBigDL = groupUserAndItems.filter(_._2.length >= 20).map {x =>

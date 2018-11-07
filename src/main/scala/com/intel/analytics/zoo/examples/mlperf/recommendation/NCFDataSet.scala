@@ -15,36 +15,20 @@
  */
 
 package com.intel.analytics.bigdl.examples.mlperf.recommendation
-
 import java.util
-import java.util.concurrent.{Executors, ThreadFactory}
 import java.util.concurrent.atomic.AtomicInteger
-
 import com.intel.analytics.bigdl.dataset.{LocalDataSet, MiniBatch}
 import com.intel.analytics.bigdl.tensor.Tensor
 import com.intel.analytics.bigdl.utils.{Engine, RandomGenerator}
 import com.intel.analytics.zoo.examples.mlperf.recommendation.NcfLogger
-
 import scala.collection.parallel.ParSeq
-import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Random
 
-class NCFDataSet (
-    trainSet: Seq[(Int, Set[Int])],
-    trainNegatives: Int,
-    batchSize: Int,
-    userCount: Int,
-    itemCount: Int,
-    var seed: Int = 1,
-    val processes: Int = 10) extends LocalDataSet[MiniBatch[Float]] {
-//  println(s"creating ncfDataset with ${processes} thread")
-
+class NCFDataSet (trainSet: Seq[(Int, Set[Int])], trainNegatives: Int, batchSize: Int, userCount: Int,
+    itemCount: Int, var seed: Int = 1, val processes: Int = 10) extends LocalDataSet[MiniBatch[Float]] {
   val trainSize = trainSet.map(_._2.size).sum
-
   val trainPositiveBuffer = new Array[Float](trainSize * 2)
   NCFDataSet.copy(trainSet, trainPositiveBuffer)
-
   val inputBuffer = new Array[Float](trainSize * (1 + trainNegatives) * 2 )
   val labelBuffer = new Array[Float](trainSize * (1 + trainNegatives))
 

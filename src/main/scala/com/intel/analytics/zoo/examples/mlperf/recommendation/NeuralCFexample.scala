@@ -63,14 +63,13 @@ case class NeuralCFParams(val inputDir: String = "./data/ml-1m",
 
 case class Rating(userId: Int, itemId: Int, label: Int, timestamp: Int, train: Boolean)
 
+
 object NeuralCFexample {
 
   def main(args: Array[String]): Unit = {
     NcfLogger.info("run_start")
     NcfLogger.info("run_clear_caches")
-
     val defaultParams = NeuralCFParams()
-
     // run with ml-20m, please use
     val parser = new OptionParser[NeuralCFParams]("NCF Example") {
       opt[String]("inputDir")
@@ -122,7 +121,6 @@ object NeuralCFexample {
         .text("If use lazyAdam")
         .action((x, c) => c.copy(lazyAdam = x))
     }
-
    parser.parse(args, defaultParams).map {
       params =>
         run(params)
@@ -143,8 +141,10 @@ object NeuralCFexample {
       ("beta1", param.beta1.toString),
       ("beta2", param.beta2.toString),
       ("eps", param.eps.toString)))
+
+
     val optimMethod = Map(
-      "embeddings" -> new EmbeddingAdam[Float](
+      "embeddings" -> new EmbeddingAdam2[Float](
         learningRate = param.learningRate,
         learningRateDecay = param.learningRateDecay,
         beta1 = param.beta1,
@@ -156,11 +156,16 @@ object NeuralCFexample {
         beta1 = param.beta1,
         beta2 = param.beta2,
         Epsilon = param.eps))
+
+
     val validateBatchSize = optimMethod("linears").asInstanceOf[ParallelAdam[Float]].parallelNum
 
     val hiddenLayers = param.layers.split(",").map(_.toInt)
 
     val (ratings, userCount, itemCount, itemMapping) = loadPublicData(param.inputDir, param.dataset)
+
+
+
 
     NcfLogger.info("preproc_hp_num_eval", param.valNegtiveNum)
     NcfLogger.info("preproc_hp_sample_eval_replacement")
@@ -172,6 +177,10 @@ object NeuralCFexample {
       seed = param.seed, processes = validateBatchSize)
     val valDataset = (DataSet.array(valSample) ->
       SampleToMiniBatch[Float](validateBatchSize)).toLocal()
+
+
+
+
 
     RandomGenerator.RNG.setSeed(param.seed)
     NcfLogger.info("model_hp_mf_dim", param.numFactors)
@@ -185,10 +194,12 @@ object NeuralCFexample {
       hiddenLayers = hiddenLayers.slice(1, hiddenLayers.length),
       mfEmbed = param.numFactors)
 
+
+
     NcfLogger.info("model_hp_loss_fn", "binary_cross_entropy")
     val criterion = BCECriterion[Float]()
 
-    val optimizer = new NCFOptimizer[Float](ncf,
+    val optimizer = new NCFOptimizer2[Float](ncf,
       trainDataset, criterion)
 
     optimizer
@@ -204,10 +215,6 @@ object NeuralCFexample {
       .setEndWhen(endTrigger)
       .optimize()
 
-//    val endTrigger = Trigger.maxEpoch(1)
-//    optimizer
-//      .setEndWhen(endTrigger)
-//      .optimize()
 //    var e = 2
 //    while(e <= param.nEpochs) {
 //      println(s"Starting epoch $e/${param.nEpochs}")
@@ -227,6 +234,65 @@ object NeuralCFexample {
     NcfLogger.info("run_final")
     System.exit(0)
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   def loadPytorchTest(posFile: String, negFile: String): Array[Sample[Float]] = {
     val startTime = System.currentTimeMillis()
@@ -257,6 +323,7 @@ object NeuralCFexample {
     println(s"load path: ${System.currentTimeMillis() - startTime}ms")
     testSet.toArray
   }
+
 
   def loadPytorchTrain(path: String, batchSize: Int = 2048): Array[MiniBatch[Float]] = {
     val startTime = System.currentTimeMillis()

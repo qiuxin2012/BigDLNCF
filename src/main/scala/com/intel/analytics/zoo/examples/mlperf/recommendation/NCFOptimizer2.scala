@@ -38,7 +38,7 @@ import scala.reflect.ClassTag
  * @param _dataset data set
  * @param _criterion criterion to be used
  */
-class NCFOptimizer[T: ClassTag](
+class NCFOptimizer2[T: ClassTag](
   _model: Module[T],
   _dataset: LocalDataSet[MiniBatch[T]],
   _criterion: Criterion[T]
@@ -46,7 +46,7 @@ class NCFOptimizer[T: ClassTag](
   extends Optimizer[T, MiniBatch[T]](
     _model, _dataset, _criterion) {
 
-  import NCFOptimizer._
+  import NCFOptimizer2._
   import Optimizer._
 
   private val coreNumber = Engine.coreNumber()
@@ -71,18 +71,9 @@ class NCFOptimizer[T: ClassTag](
   val (linearsWeight, linearsGrad) = ncfModel.ncfLayers.getParameters()
 
   val workingEmbeddingModelWAndG = workingEmbeddingModels.map(_.getParameters())
-
-//  embeddingWeight.setValue(1, ev.fromType(0.123f))
 //  workingEmbeddingModelWAndG.foreach(_._1.set(embeddingWeight))
 //  workingEmbeddingModelWAndG.foreach(_._2.set(embeddingGrad))
-
-//  workingEmbeddingModels(0).parameters()._2.apply(0).setValue(1, 1, ev.fromType(0.02f))
-//  workingEmbeddingModels(0).parameters()._1.apply(0).setValue(1, 1, ev.fromType(1.02f))
-
   val workingLinearModelWAndG = workingLinears.map(_.getParameters())
-//  workingLinearModelWAndG.foreach(_._1.set(linearsWeight))
-//  workingLinearModelWAndG(0)._1.setValue(1, ev.fromType(0.222f))
-
 
   private val linearGradLength = linearsGrad.nElement()
 
@@ -120,9 +111,8 @@ class NCFOptimizer[T: ClassTag](
     state("trainingTime") = state.get[Long]("trainingTime").getOrElse(0L)
     state("isLayerwiseScaled") = Utils.isLayerwiseScaled(_model)
     val optimMethod: OptimMethod[T] = optimMethods("linears")
-    val embeddingOptim: EmbeddingAdam[T] = optimMethods("embeddings").asInstanceOf[EmbeddingAdam[T]]
+    val embeddingOptim: EmbeddingAdam2[T] = optimMethods("embeddings").asInstanceOf[EmbeddingAdam2[T]]
     val generationStart = System.currentTimeMillis()
-    NcfLogger.info("input_step_train_neg_gen")
     dataset.shuffle()
     logger.info(s"Generate epoch ${state("epoch")} data: ${System.currentTimeMillis() - generationStart} ms")
     val numSamples = dataset.toLocal().data(train = false).map(_.size()).reduce(_ + _)
@@ -135,7 +125,6 @@ class NCFOptimizer[T: ClassTag](
     NcfLogger.info("train_epoch", state[Int]("epoch") - 1)
     while (!endWhen(state)) {
       val start = System.nanoTime()
-
       // Fetch data and prepare tensors
       val batch = iter.next()
       var b = 0
@@ -153,7 +142,6 @@ class NCFOptimizer[T: ClassTag](
       if (!useLazyAdam) {
         embeddingOptim.updateWeight(batch.getInput().asInstanceOf[Tensor[T]], embeddingWeight)
       }
-      // println("dataFetch")
 //      val modelTimeArray = new Array[Long](parallelism)
       val lossSum = Engine.default.invokeAndWait(
         (0 until parallelism).map(i =>
@@ -383,7 +371,7 @@ class NCFOptimizer[T: ClassTag](
   }
 }
 
-object NCFOptimizer {
+object NCFOptimizer2 {
   val logger = Logger.getLogger(this.getClass)
 
   def initModel[T: ClassTag](model: Module[T], copies: Int,
