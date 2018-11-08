@@ -1,5 +1,5 @@
 ### 1. Sparse-Optimized Adam.
-As most of gradient of embedding layer is zero, we can avoid the useless computing of zeros.
+As most of gradient of embedding layer is zero, we can avoid the useless computing of zeros. This implement equal to Adam mathematically.
 
 ### 2. Parallel model computing.
 We leverage BigDL to do a data parallelism optimization, we split the minibatch into `n` pieces, can create `n` model, each model run a pieces of minibatch.
