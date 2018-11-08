@@ -62,7 +62,7 @@ bash run_and_time.sh PARALLELISM SEED
 
 Run `run.sh` script with an integer `n times`, it will run `n times` of ncf training with the seed of time seconds, and write logs to folder `./logs`.
 ```bash
-bash run.sh <run times>
+bash run_and_time_skx8180.sh <run times>
 ```
 
 # 3. Dataset/Environment
