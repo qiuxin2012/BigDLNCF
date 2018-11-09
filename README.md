@@ -17,7 +17,7 @@ export PATH=$MAVEN_HOME/bin:$PATH
 export SPARK_HOME=<spark folder>
 export PATH=$SPARK_HOME/bin:$PATH
 ```
-Make sure `mvn`, `java`, `spark-submit` works in shell.   
+Make sure command `mvn`, `java`, `spark-submit` works in shell.   
 
 2. Install `unzip` and `curl`
 
