@@ -5,7 +5,7 @@ The model trains on binary information about whether or not a user interacted wi
 # 2. Directions
 ### Steps to configure machine
 
-1. Download and Install [JDK 1.8 jdk-8u191-linux-x64.tar.gz](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html), [Maven 3.3.9](https://archive.apache.org/dist/maven/maven-3/3.3.9/binaries/), and [Spark 2.1.0](https://archive.apache.org/dist/spark/spark-2.1.0/spark-2.1.0-bin-hadoop2.7.tgz).  
+1. Download and Install [JDK1.8 jdk-8u191-linux-x64.tar.gz](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html), [Maven 3.3.9](https://archive.apache.org/dist/maven/maven-3/3.3.9/binaries/), and [Spark 2.1.0](https://archive.apache.org/dist/spark/spark-2.1.0/spark-2.1.0-bin-hadoop2.7.tgz).  
 Extract the packages, then set `JAVA_HOME`, `MAVEN_HOME`, `SPARK_HOME`, and add `$JAVA_HOME/bin`, `$MAVEN_HOME/bin`, `$SPARK_HOME/bin` to `PATH`:
 ```bash
 export JAVA_HOME=<java folder>
