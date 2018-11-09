@@ -19,10 +19,10 @@ export PATH=$SPARK_HOME/bin:$PATH
 ```
 Make sure command `mvn`, `java`, `spark-submit` works in shell.   
 
-2. Install `unzip` and `curl`
+2. Install `unzip`, `curl` and `git`
 
 ```bash
-sudo apt-get install unzip curl
+sudo apt-get install unzip curl git
 ```
 3. Checkout the repo
 ```bash
