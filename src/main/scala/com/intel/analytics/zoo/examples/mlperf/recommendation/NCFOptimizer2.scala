@@ -57,11 +57,17 @@ class NCFOptimizer2[T: ClassTag](
   }
 
   val ncfModel = _model.asInstanceOf[NeuralCF[T]]
+  val ncfModel2 = _model.asInstanceOf[NeuralCF[T]].cloneModule()
 
   // TODO: sharing failed
   val workingEmbeddingModels = initModel(ncfModel.embeddingModel,
     subModelNumber, true)
   val workingLinears = initModel(ncfModel.ncfLayers,
+    subModelNumber, false)
+
+  val workingEmbeddingModels2 = initModel(ncfModel2.embeddingModel,
+    subModelNumber, true)
+  val workingLinears2 = initModel(ncfModel2.ncfLayers,
     subModelNumber, false)
 
 //  workingEmbeddingModels(0).parameters()._2.apply(0).setValue(1, 1, ev.fromType(0.01f))
@@ -70,10 +76,15 @@ class NCFOptimizer2[T: ClassTag](
   val (embeddingWeight, embeddingGrad) = ncfModel.embeddingModel.getParameters()
   val (linearsWeight, linearsGrad) = ncfModel.ncfLayers.getParameters()
 
+  val (embeddingWeight2, embeddingGrad2) = ncfModel2.embeddingModel.getParameters()
+  val (linearsWeight2, linearsGrad2) = ncfModel2.ncfLayers.getParameters()
+
   val workingEmbeddingModelWAndG = workingEmbeddingModels.map(_.getParameters())
+  val workingEmbeddingModelWAndG2 = workingEmbeddingModels.map(_.getParameters())
 //  workingEmbeddingModelWAndG.foreach(_._1.set(embeddingWeight))
 //  workingEmbeddingModelWAndG.foreach(_._2.set(embeddingGrad))
   val workingLinearModelWAndG = workingLinears.map(_.getParameters())
+  val workingLinearModelWAndG2 = workingLinears2.map(_.getParameters())
 
   private val linearGradLength = linearsGrad.nElement()
 
@@ -147,8 +158,12 @@ class NCFOptimizer2[T: ClassTag](
         (0 until parallelism).map(i =>
           () => {
             val start = System.nanoTime()
-            val localEmbedding = workingEmbeddingModels(i)
-            val localLinears = workingLinears(i)
+
+            val (localLinears, localEmbedding) = if (i >= parallelism / 2) {
+              (workingLinears(i), workingEmbeddingModels(i))
+            } else {
+              (workingLinears2(i), workingEmbeddingModels2(i))
+            }
 //            localEmbedding.zeroGradParameters()
             localEmbedding.training()
             localLinears.training()
