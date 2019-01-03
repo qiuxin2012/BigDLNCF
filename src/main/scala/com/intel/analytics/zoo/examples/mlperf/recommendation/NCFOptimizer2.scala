@@ -135,7 +135,6 @@ class NCFOptimizer2[T: ClassTag](
 
     NcfLogger.info("train_epoch", state[Int]("epoch") - 1)
     while (!endWhen(state)) {
-      val start = System.nanoTime()
       // Fetch data and prepare tensors
       val batch = iter.next()
       var b = 0
@@ -153,13 +152,15 @@ class NCFOptimizer2[T: ClassTag](
       if (!useLazyAdam) {
         embeddingOptim.updateWeight(batch.getInput().asInstanceOf[Tensor[T]], embeddingWeight)
       }
+      val start = System.nanoTime()
 //      val modelTimeArray = new Array[Long](parallelism)
       val lossSum = Engine.default.invokeAndWait(
         (0 until parallelism).map(i =>
           () => {
+            Affinity.setAffinity(i)
             val start = System.nanoTime()
 
-            val (localLinears, localEmbedding) = if (i >= parallelism / 2) {
+            val (localLinears, localEmbedding) = if (i < parallelism / 2) {
               (workingLinears(i), workingEmbeddingModels(i))
             } else {
               (workingLinears2(i), workingEmbeddingModels2(i))
@@ -182,104 +183,108 @@ class NCFOptimizer2[T: ClassTag](
             _loss
           })
       ).sum
+      println(s"${System.nanoTime() - start}")
 
-      val loss = lossSum / parallelism
+//      val loss = lossSum / parallelism
 
 //      val computingTime = System.nanoTime()
 //      val zeroGradTime = System.nanoTime()
 
 
-      (0 until parallelism).toArray.foreach { i =>
-        val localEmbedding = workingEmbeddingModels(i).asInstanceOf[Graph[T]]
-        val input1 = localEmbedding("userId").get.output.asInstanceOf[Tensor[T]]
-        val input2 = localEmbedding("itemId").get.output.asInstanceOf[Tensor[T]]
-        val localLinears = workingLinears(i)
-        embeddingOptim.gradients(0)(i) = (input1, localLinears.gradInput.toTable[Tensor[T]](1))
-        embeddingOptim.gradients(1)(i) = (input2, localLinears.gradInput.toTable[Tensor[T]](2))
-        embeddingOptim.gradients(2)(i) = (input1, localLinears.gradInput.toTable[Tensor[T]](3))
-        embeddingOptim.gradients(3)(i) = (input2, localLinears.gradInput.toTable[Tensor[T]](4))
-      }
-
-//      val computingTime2 = System.nanoTime()
-
-
-      // copy multi-model gradient to the buffer
-      Engine.default.invokeAndWait(
-        (0 until linearSyncGradParallelNum).map(tid =>
-          () => {
-            val offset = tid * linearSyncGradTaskSize + math.min(tid, linearSyncGradExtraTask)
-            val length = linearSyncGradTaskSize + (if (tid < linearSyncGradExtraTask) 1 else 0)
-            var i = 0
-            while (i < parallelism) {
-              if (i == 0) {
-                linearsGrad.narrow(1, offset + 1, length)
-                  .copy(workingLinearModelWAndG(i)._2.narrow(1, offset + 1, length))
-              } else {
-                linearsGrad.narrow(1, offset + 1, length)
-                  .add(workingLinearModelWAndG(i)._2.narrow(1, offset + 1, length))
-              }
-              i += 1
-            }
-          })
-      )
-      linearsGrad.div(ev.fromType(parallelism))
-
-//      val aggTime = System.nanoTime()
-      //println("agg")
-
-      optimMethod.state.update("epoch", state.get("epoch"))
-      optimMethod.state.update("neval", state.get("neval"))
-      optimMethod.optimize(_ => (ev.fromType(loss), linearsGrad), linearsWeight)
-
-//      val updateWeightTime1 = System.nanoTime()
-
-      embeddingOptim.state.update("epoch", state.get("epoch"))
-      embeddingOptim.state.update("neval", state.get("neval"))
-      embeddingOptim.optimize(_ => (ev.fromType(loss), null), embeddingWeight)
-
-//      val updateWeightTime2 = System.nanoTime()
-      // println("update weight")
-      val end = System.nanoTime()
-      wallClockTime += end - start
-      count += batch.size()
-      /*logger.info( s"data fetch time is ${(dataFetchTime - start) / 1e9}s " +
-        s"model computing time is ${(computingTime - dataFetchTime) / 1e9}s " +
-        s"zero grad time is ${(zeroGradTime - computingTime) / 1e9}s " +
-        s"acc embedding time is ${(computingTime2 - zeroGradTime) / 1e9}s " +
-        s"aggregate linear is ${(aggTime - computingTime2) / 1e9}s " +
-        s"update linear time is ${(updateWeightTime1 - aggTime) / 1e9}s " +
-        s"update embedding time is ${(updateWeightTime2 - updateWeightTime1) / 1e9}s")*/
-
-      state("neval") = state[Int]("neval") + 1
-
-      if (count >= numSamples) {
-        val userC = 138493
-        val itemC = 26744
-        val userIds = Tensor(userC).range(1, userC)
-        val itemIds = Tensor(itemC).range(1, itemC)
-        val userItem = Tensor(math.max(userC, itemC), 2).fill(ev.one)
-        userItem.select(2, 1).narrow(1, 1, userC).copy(userIds)
-        userItem.select(2, 2).narrow(1, 1, itemC).copy(itemIds)
-        embeddingOptim.updateWeight(userItem, embeddingWeight)
-
-        val head = header(state[Int]("epoch"), count, numSamples, state[Int]("neval"), wallClockTime)
-        logger.info(s"$head " +
-          s"loss is $loss, training cost ${(wallClockTime - state[Long]("trainingTime")) / 1e9}s. " +
-          s"Throughput is ${count * 1e9 / (wallClockTime - state[Long]("trainingTime"))} record / second. ")
-        state("trainingTime") = wallClockTime
-        state("epoch") = state[Int]("epoch") + 1
-        validate(head)
-        checkpoint(wallClockTime)
-        if (!endWhen(state)) {
-          val generationStart = System.currentTimeMillis()
-          NcfLogger.info("input_step_train_neg_gen")
-          dataset.shuffle()
-          iter = dataset.toLocal().data(train = true)
-          NcfLogger.info("train_epoch", state[Int]("epoch") - 1)
-          logger.info(s"Generate epoch ${state("epoch")} data: ${System.currentTimeMillis() - generationStart} ms")
-        }
-        count = 0
-      }
+//      (0 until parallelism).toArray.foreach { i =>
+//        val (localLinears, localEmbedding) = if (i < parallelism / 2) {
+//          (workingLinears(i), workingEmbeddingModels(i).asInstanceOf[Graph[T]])
+//        } else {
+//          (workingLinears2(i), workingEmbeddingModels2(i).asInstanceOf[Graph[T]])
+//        }
+//        val input1 = localEmbedding("userId").get.output.asInstanceOf[Tensor[T]]
+//        val input2 = localEmbedding("itemId").get.output.asInstanceOf[Tensor[T]]
+//        embeddingOptim.gradients(0)(i) = (input1, localLinears.gradInput.toTable[Tensor[T]](1))
+//        embeddingOptim.gradients(1)(i) = (input2, localLinears.gradInput.toTable[Tensor[T]](2))
+//        embeddingOptim.gradients(2)(i) = (input1, localLinears.gradInput.toTable[Tensor[T]](3))
+//        embeddingOptim.gradients(3)(i) = (input2, localLinears.gradInput.toTable[Tensor[T]](4))
+//      }
+//
+////      val computingTime2 = System.nanoTime()
+//
+//
+//      // copy multi-model gradient to the buffer
+//      Engine.default.invokeAndWait(
+//        (0 until linearSyncGradParallelNum).map(tid =>
+//          () => {
+//            val offset = tid * linearSyncGradTaskSize + math.min(tid, linearSyncGradExtraTask)
+//            val length = linearSyncGradTaskSize + (if (tid < linearSyncGradExtraTask) 1 else 0)
+//            var i = 0
+//            while (i < parallelism) {
+//              if (i == 0) {
+//                linearsGrad.narrow(1, offset + 1, length)
+//                  .copy(workingLinearModelWAndG(i)._2.narrow(1, offset + 1, length))
+//              } else {
+//                linearsGrad.narrow(1, offset + 1, length)
+//                  .add(workingLinearModelWAndG(i)._2.narrow(1, offset + 1, length))
+//              }
+//              i += 1
+//            }
+//          })
+//      )
+//      linearsGrad.div(ev.fromType(parallelism))
+//
+////      val aggTime = System.nanoTime()
+//      //println("agg")
+//
+//      optimMethod.state.update("epoch", state.get("epoch"))
+//      optimMethod.state.update("neval", state.get("neval"))
+//      optimMethod.optimize(_ => (ev.fromType(loss), linearsGrad), linearsWeight)
+//
+////      val updateWeightTime1 = System.nanoTime()
+//
+//      embeddingOptim.state.update("epoch", state.get("epoch"))
+//      embeddingOptim.state.update("neval", state.get("neval"))
+//      embeddingOptim.optimize(_ => (ev.fromType(loss), null), embeddingWeight)
+//
+////      val updateWeightTime2 = System.nanoTime()
+//      // println("update weight")
+//      val end = System.nanoTime()
+//      wallClockTime += end - start
+//      count += batch.size()
+//      /*logger.info( s"data fetch time is ${(dataFetchTime - start) / 1e9}s " +
+//        s"model computing time is ${(computingTime - dataFetchTime) / 1e9}s " +
+//        s"zero grad time is ${(zeroGradTime - computingTime) / 1e9}s " +
+//        s"acc embedding time is ${(computingTime2 - zeroGradTime) / 1e9}s " +
+//        s"aggregate linear is ${(aggTime - computingTime2) / 1e9}s " +
+//        s"update linear time is ${(updateWeightTime1 - aggTime) / 1e9}s " +
+//        s"update embedding time is ${(updateWeightTime2 - updateWeightTime1) / 1e9}s")*/
+//
+//      state("neval") = state[Int]("neval") + 1
+//
+//      if (count >= numSamples) {
+//        val userC = 138493
+//        val itemC = 26744
+//        val userIds = Tensor(userC).range(1, userC)
+//        val itemIds = Tensor(itemC).range(1, itemC)
+//        val userItem = Tensor(math.max(userC, itemC), 2).fill(ev.one)
+//        userItem.select(2, 1).narrow(1, 1, userC).copy(userIds)
+//        userItem.select(2, 2).narrow(1, 1, itemC).copy(itemIds)
+//        embeddingOptim.updateWeight(userItem, embeddingWeight)
+//
+//        val head = header(state[Int]("epoch"), count, numSamples, state[Int]("neval"), wallClockTime)
+//        logger.info(s"$head " +
+//          s"loss is $loss, training cost ${(wallClockTime - state[Long]("trainingTime")) / 1e9}s. " +
+//          s"Throughput is ${count * 1e9 / (wallClockTime - state[Long]("trainingTime"))} record / second. ")
+//        state("trainingTime") = wallClockTime
+//        state("epoch") = state[Int]("epoch") + 1
+//        validate(head)
+//        checkpoint(wallClockTime)
+//        if (!endWhen(state)) {
+//          val generationStart = System.currentTimeMillis()
+//          NcfLogger.info("input_step_train_neg_gen")
+//          dataset.shuffle()
+//          iter = dataset.toLocal().data(train = true)
+//          NcfLogger.info("train_epoch", state[Int]("epoch") - 1)
+//          logger.info(s"Generate epoch ${state("epoch")} data: ${System.currentTimeMillis() - generationStart} ms")
+//        }
+//        count = 0
+//      }
 
     }
     ncfModel.embeddingModel.getParameters()._1.copy(embeddingWeight)
