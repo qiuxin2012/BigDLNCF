@@ -49,6 +49,7 @@ class NCFOptimizer2[T: ClassTag](
   import NCFOptimizer2._
   import Optimizer._
 
+  MklDnn.isLoaded
   private val coreNumber = Engine.coreNumber()
 
   private val subModelNumber = Engine.getEngineType match {
@@ -102,6 +103,16 @@ class NCFOptimizer2[T: ClassTag](
   private val workingCriterion =
     (1 to subModelNumber).map(_ => _criterion.cloneCriterion()).toArray
 
+  val numberSocket = 2
+  val threadPools = new Array[ThreadPool](numberSocket)
+  val parallelismInSocket = subModelNumber / numberSocket
+  (0 until numberSocket).foreach{i =>
+    threadPools(i) = new ThreadPool(parallelismInSocket)
+    threadPools(i).invokeAndWait((0 until parallelismInSocket).map(j => () => {
+      Affinity.setAffinity(j + i * parallelismInSocket)
+    }))
+  }
+
   private var useLazyAdam: Boolean = false
 
   def enableLazyAdam(): Unit = {
@@ -114,7 +125,6 @@ class NCFOptimizer2[T: ClassTag](
 
   override def optimize(): Module[T] = {
     NcfLogger.info("train_loop")
-    MklDnn.isLoaded
     var wallClockTime = 0L
     var count = 0
     state("epoch") = state.get[Int]("epoch").getOrElse(1)
@@ -154,36 +164,33 @@ class NCFOptimizer2[T: ClassTag](
       }
       val start = System.nanoTime()
 //      val modelTimeArray = new Array[Long](parallelism)
-      val lossSum = Engine.default.invokeAndWait(
-        (0 until parallelism).map(i =>
-          () => {
-            Affinity.setAffinity(i)
-            val start = System.nanoTime()
+      val computingTasks = (0 until numberSocket).map(socket => {
+        threadPools(socket).invoke((0 until parallelismInSocket).map(i => () => {
+          val (localLinears, localEmbedding) = if (socket == 0) {
+            (workingLinears(i), workingEmbeddingModels(i))
+          } else {
+            (workingLinears2(i), workingEmbeddingModels2(i))
+          }
+          //            localEmbedding.zeroGradParameters()
+          localEmbedding.training()
+          localLinears.training()
+          localLinears.zeroGradParameters()
+          val localCriterion = workingCriterion(i)
+          val input = miniBatchBuffer(i).getInput()
+          val target = miniBatchBuffer(i).getTarget()
 
-            val (localLinears, localEmbedding) = if (i < parallelism / 2) {
-              (workingLinears(i), workingEmbeddingModels(i))
-            } else {
-              (workingLinears2(i), workingEmbeddingModels2(i))
-            }
-//            localEmbedding.zeroGradParameters()
-            localEmbedding.training()
-            localLinears.training()
-            localLinears.zeroGradParameters()
-            val localCriterion = workingCriterion(i)
-            val input = miniBatchBuffer(i).getInput()
-            val target = miniBatchBuffer(i).getTarget()
-
-            val embeddingOutput = localEmbedding.forward(input)
-            val output = localLinears.forward(embeddingOutput)
-            val _loss = ev.toType[Double](localCriterion.forward(output, target))
-            val errors = localCriterion.backward(output, target)
-            localEmbedding.updateGradInput(input,
-              localLinears.backward(localEmbedding.output, errors))
-//            modelTimeArray(i) = System.nanoTime() - start
-            _loss
-          })
-      ).sum
-      println(s"${System.nanoTime() - start}")
+          val embeddingOutput = localEmbedding.forward(input)
+          val output = localLinears.forward(embeddingOutput)
+          val _loss = ev.toType[Double](localCriterion.forward(output, target))
+          val errors = localCriterion.backward(output, target)
+          localEmbedding.updateGradInput(input,
+            localLinears.backward(localEmbedding.output, errors))
+          _loss
+        }))
+      })
+      (0 until numberSocket).foreach(socket => threadPools(socket).sync(computingTasks(socket)))
+      val lossSum = computingTasks.map(_.map(future => future.value.get.get).sum).sum
+      println(s"$lossSum: ${System.nanoTime() - start}")
 
 //      val loss = lossSum / parallelism
 
